@@ -1,0 +1,117 @@
+{
+  "schema_version": "1.0",
+  "document": {
+    "file": "data/raw_docs/yushu.pdf",
+    "company": "宇树科技股份有限公司"
+  },
+  "samples": [
+    {
+      "id": "q001",
+      "question": "宇树科技的主营业务是什么？",
+      "ground_truth": "公司专注于高性能通用人形机器人、四足机器人、机器人组件及具身智能模型的研发、生产和销售业务。",
+      "category": "factual",
+      "route_hint": "vector",
+      "must_contain": ["人形机器人", "四足机器人"]
+    },
+    {
+      "id": "q002",
+      "question": "公司的法定代表人、控股股东和实际控制人分别是谁？",
+      "ground_truth": "法定代表人、控股股东和实际控制人均为王兴兴。王兴兴直接持有公司 8,671.4964 万股，占股本总额 23.8216%。",
+      "category": "governance",
+      "route_hint": "graph",
+      "must_contain": ["王兴兴", "23.8216%"],
+      "gold_chunk_ids": ["yushu_p057_c0084", "yushu_p058_c0085"]
+    },
+    {
+      "id": "q003",
+      "question": "宇树科技是什么时候成立的？注册地址在哪里？",
+      "ground_truth": "公司成立于 2016 年 8 月 26 日。注册地址为浙江省杭州市滨江区西兴街道东流路 88 号 1 幢 306 室。",
+      "category": "factual",
+      "route_hint": "vector",
+      "must_contain": ["2016年8月26日", "杭州"]
+    },
+    {
+      "id": "q004",
+      "question": "本次募集资金投资项目有哪些？",
+      "ground_truth": "智能机器人模型研发、机器人本体研发、新型智能机器人产品开发、智能机器人制造基地建设四个项目，合计约 42 亿元。",
+      "category": "ipo",
+      "route_hint": "vector",
+      "must_contain": ["智能机器人模型研发", "42"]
+    },
+    {
+      "id": "q006",
+      "question": "2025 年公司营业收入和扣非后净利润分别是多少？",
+      "ground_truth": "2025 年营业收入 169,926.93 万元，扣非后净利润 59,075.28 万元。",
+      "category": "financial",
+      "route_hint": "vector",
+      "must_contain": ["169,926.93", "59,075.28"]
+    },
+    {
+      "id": "q007",
+      "question": "2025 年主营业务毛利率是多少？",
+      "ground_truth": "2025 年主营业务毛利率为 60.13%。",
+      "category": "financial",
+      "route_hint": "vector",
+      "must_contain": ["60.13%"]
+    },
+    {
+      "id": "q009",
+      "question": "截至 2025 年 12 月末研发人员有多少？占比多少？",
+      "ground_truth": "研发人员 184 人，员工总数 516 人，占比 35.66%。",
+      "category": "rd",
+      "route_hint": "vector",
+      "must_contain": ["184", "35.66%"]
+    },
+    {
+      "id": "q011",
+      "question": "公司有多少家全资子公司？列举至少 5 家。",
+      "ground_truth": "共 8 家全资子公司，包括宇树机器人、上海高羿、北京灵翌、深圳天羿、UNITREE LIMITED、宁波宇树、重庆宇羿、宇树星盟等。",
+      "category": "structure",
+      "route_hint": "graph",
+      "must_contain": ["8", "宇树机器人", "上海高羿"],
+      "gold_chunk_ids": ["yushu_p057_c0084", "yushu_p014_c0023", "yushu_p058_c0085"]
+    },
+    {
+      "id": "q012",
+      "question": "公司实际控制人是谁？有哪些全资子公司？",
+      "ground_truth": "实际控制人为王兴兴。全资子公司包括宇树机器人、上海高羿、北京灵翌、深圳天羿、宁波宇树、重庆宇羿、宇树星盟、UNITREE LIMITED 等。",
+      "category": "governance",
+      "route_hint": "hybrid",
+      "must_contain": ["王兴兴", "宇树机器人", "全资子公司"],
+      "gold_chunk_ids": ["yushu_p057_c0084", "yushu_p014_c0023"]
+    },
+    {
+      "id": "q015",
+      "question": "2025 年人形机器人出货量大约是多少？",
+      "ground_truth": "超过 5,500 台（纯人形），出货量全球第一。",
+      "category": "product",
+      "route_hint": "vector",
+      "must_contain": ["5,500"]
+    },
+    {
+      "id": "q017",
+      "question": "招股书列举了哪些与发行人相关的风险？至少四项。",
+      "ground_truth": "包括经营业绩波动、研发不及预期、人才流失、存货跌价、应收账款、募投项目支出、汇率波动、劳务外包等风险。",
+      "category": "risk",
+      "route_hint": "hybrid",
+      "must_contain": ["风险"]
+    },
+    {
+      "id": "q020",
+      "question": "2026 年一季度扣非净利润同比变化如何？",
+      "ground_truth": "扣非后净利润同比下降 52.55%。",
+      "category": "financial",
+      "route_hint": "vector",
+      "must_contain": ["52.55%"]
+    },
+    {
+      "id": "q024",
+      "question": "上海高羿和深圳天羿分别做什么业务？",
+      "ground_truth": "上海高羿从事具身智能及机器人研发及部分销售；深圳天羿从事具身智能及机器人销售，均为 100% 全资子公司。",
+      "category": "structure",
+      "route_hint": "graph",
+      "must_contain": ["上海高羿", "深圳天羿"],
+      "gold_chunk_ids": ["yushu_p058_c0085"]
+    }
+  ]
+}
