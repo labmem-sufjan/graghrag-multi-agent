@@ -136,4 +136,4 @@ docs/                架构说明
 
 ## License
 
-按仓库实际许可证填写（如 MIT）。
+[MIT](LICENSE) © [Zixi Gong](https://github.com/labmem-sufjan)
