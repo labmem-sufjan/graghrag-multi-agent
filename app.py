@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MVP CLI for GraphRAG multi-agent Q&A."""
+"""命令行问答入口：调用 run_query，打印路由、chunk 引用与 Critic 结果。"""
 
 from __future__ import annotations
 

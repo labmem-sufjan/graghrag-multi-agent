@@ -1,52 +1,54 @@
-"""Critic agent — rule checks first, optional LLM validation."""
+"""Critic：对生成答案做质检。
+
+默认仅用规则（settings.critic_use_llm=False），依据 document_profile 中的
+幻觉模式、控制人/子公司是否出现在 context 但未写入 answer 等。
+不通过时目前仅记录 feedback，工作流不会自动重试检索。
+"""
 
 from __future__ import annotations
 
 import json
 import re
 
+from config.document_profile import get_document_profile
 from config.prompts import CRITIC_SYSTEM
 from config.settings import settings
 from src.agents.state import AgentState
 from src.tools.llm import extract_message_content, get_chat_llm
 
-# 常见 Llama 幻觉人名（招股书实际控制人为王兴兴）
-_WRONG_CONTROLLER_NAMES = re.compile(r"张阳光|Zhang Yangguang|Yangguang Zhang", re.I)
+_ENGLISH_TEMPLATE = re.compile(
+    r"\b(Based on the provided|According to the)\b", re.I
+)
 
 
 def _rule_based_critic(context: str, answer: str, question: str) -> tuple[bool, str]:
+    profile = get_document_profile()
     issues: list[str] = []
 
     if len(re.findall(r"[A-Za-z]{4,}", answer)) > 15:
         issues.append("回答含大量英文，请使用简体中文")
 
-    if _WRONG_CONTROLLER_NAMES.search(answer):
-        issues.append("出现上下文未支持的「张阳光」等错误人名")
+    for pat in profile.hallucination_patterns:
+        if pat.search(answer):
+            issues.append("回答含已知幻觉或上下文未支持的人名/表述")
+            break
 
-    if any(k in question for k in ("控制", "实际控制人", "控股股东")):
-        if "王兴兴" in context and "王兴兴" not in answer:
-            issues.append("上下文有王兴兴，回答未体现实际控制人")
+    if _ENGLISH_TEMPLATE.search(answer):
+        issues.append("回答以英文模板开头")
+
+    if any(k in question for k in profile.controller_question_keywords):
+        in_ctx = profile.controllers_in_context(context)
+        if in_ctx and not any(n in answer for n in in_ctx):
+            issues.append(
+                f"上下文已披露控制人（{'、'.join(in_ctx[:2])}），回答未体现"
+            )
 
     if "子公司" in question or "全资" in question:
-        markers = ["全资子公司", "系发行人的全资子公司", "宇树机器人"]
+        markers = profile.subsidiary_context_markers
         if any(m in context for m in markers):
-            if not any(
-                s in answer
-                for s in (
-                    "宇树机器人",
-                    "上海高羿",
-                    "北京灵翌",
-                    "深圳天羿",
-                    "宁波宇树",
-                    "重庆宇羿",
-                    "宇树星盟",
-                    "UNITREE",
-                )
-            ):
-                issues.append("未列出上下文中的全资子公司名称")
-
-    if "Based on the provided" in answer or "According to the" in answer:
-        issues.append("回答以英文模板开头")
+            in_ctx = profile.subsidiaries_in_context(context)
+            if in_ctx and not any(n in answer for n in in_ctx):
+                issues.append("上下文含子公司信息，回答未列出相关子公司名称")
 
     if issues:
         return False, "；".join(issues)
@@ -54,6 +56,7 @@ def _rule_based_critic(context: str, answer: str, question: str) -> tuple[bool, 
 
 
 def _parse_critic_json(raw: str) -> dict | None:
+    """解析 LLM Critic 的 JSON；过滤 Ollama 误返回的 HTTP 调试文本。"""
     raw = raw.strip()
     if "status_code" in raw and "result" in raw:
         return None

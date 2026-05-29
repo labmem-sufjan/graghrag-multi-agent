@@ -1,4 +1,8 @@
-"""LangGraph multi-agent workflow: Router → Experts → Generate → Critic."""
+"""在线问答：LangGraph 编排 Multi-Agent 流水线。
+
+流程：Router →（Vector | Graph | Hybrid 三选一）→ Generate → Critic → END
+当前 Critic 不通过也不会回环重试，仅把 critic_passed 写入状态。
+"""
 
 from __future__ import annotations
 
@@ -14,6 +18,7 @@ from src.agents.vector_expert import retrieve_vector
 
 
 def _pick_retriever(state: AgentState) -> str:
+    """条件边：根据 state['route'] 进入对应 Expert 节点。"""
     return state.get("route", "vector")
 
 
@@ -37,6 +42,7 @@ def build_workflow():
             "hybrid": "hybrid_expert",
         },
     )
+    # 三条 Expert 边都汇入同一 Generate，再进 Critic
     graph.add_edge("vector_expert", "generate")
     graph.add_edge("graph_expert", "generate")
     graph.add_edge("hybrid_expert", "generate")
@@ -46,6 +52,7 @@ def build_workflow():
 
 
 def run_query(question: str) -> AgentState:
+    """对外入口：app.py / web_app / evaluation multi_agent 均调用此函数。"""
     app = build_workflow()
     initial: AgentState = {
         "question": question,

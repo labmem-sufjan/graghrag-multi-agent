@@ -1,52 +1,40 @@
-"""Graph retrieval expert — keywords + entities + subgraph."""
+"""Graph Expert：Neo4j 关键词 chunk + 实体子图 + 子公司关系边。
+
+不走向量库；强项是「控制人、子公司名单、关系」等结构化披露段落。
+"""
 
 from __future__ import annotations
 
+from config.document_profile import get_document_profile
 from config.settings import settings
 from src.agents.state import AgentState
 from src.tools.context_limit import ChunkBlock, merge_and_limit_context
+from src.tools.directed_retrieval import fetch_directed_chunks
 from src.tools.neo4j_client import Neo4jGraphClient
 from src.tools.retrieval import extract_search_keywords
 
 
 def retrieve_graph(state: AgentState) -> AgentState:
     question = state["question"]
+    profile = get_document_profile()
     keywords = extract_search_keywords(question)
     blocks: list[ChunkBlock] = []
     names: list[str] = []
     extra_lines: list[str] = []
+    graph_cids: list[str] = []
 
     with Neo4jGraphClient() as graph:
-        if "子公司" in question or "全资" in question:
-            for c in graph.search_subsidiary_chunks(limit=6):
-                blocks.append(
-                    ChunkBlock(
-                        chunk_id=c["chunk_id"],
-                        page=c.get("page", "?"),
-                        text=c.get("text") or "",
-                        priority=90,
-                    )
+        # 按问题类型拉「定向 chunk」（子公司表、控制人、风险、财务等）
+        for row, priority in fetch_directed_chunks(question, graph, profile=profile):
+            blocks.append(
+                ChunkBlock(
+                    chunk_id=row["chunk_id"],
+                    page=row.get("page", "?"),
+                    text=row.get("text") or "",
+                    priority=priority,
                 )
-        if any(k in question for k in ("控制", "股东", "控股")):
-            for c in graph.search_controller_chunks(limit=4):
-                blocks.append(
-                    ChunkBlock(
-                        chunk_id=c["chunk_id"],
-                        page=c.get("page", "?"),
-                        text=c.get("text") or "",
-                        priority=88,
-                    )
-                )
-        if "风险" in question:
-            for c in graph.search_risk_chunks(limit=6):
-                blocks.append(
-                    ChunkBlock(
-                        chunk_id=c["chunk_id"],
-                        page=c.get("page", "?"),
-                        text=c.get("text") or "",
-                        priority=86,
-                    )
-                )
+            )
+
         for c in graph.search_chunks_by_keywords(
             keywords,
             boost_phrases=keywords[:6],
@@ -66,12 +54,9 @@ def retrieve_graph(state: AgentState) -> AgentState:
                 if e["name"] not in names:
                     names.append(e["name"])
 
-        if "王兴兴" not in names and any(
-            k in question for k in ("控制", "股东", "控股")
-        ):
-            names.append("王兴兴")
-        if "宇树科技股份有限公司" not in names:
-            names.insert(0, "宇树科技股份有限公司")
+        for seed in profile.seed_entity_names(question):
+            if seed not in names:
+                names.insert(0, seed)
 
         graph_ctx, graph_cids = graph.get_graph_context(
             names[:12],
@@ -82,7 +67,7 @@ def retrieve_graph(state: AgentState) -> AgentState:
             extra_lines.append(graph_ctx[: settings.context_chunk_max_chars * 3])
 
         if "子公司" in question or "全资" in question:
-            subs = graph.search_subsidiary_relations()
+            subs = graph.search_subsidiary_relations(profile=profile)
             if subs:
                 rel_lines = ["\n【图谱：子公司关系】"]
                 for s in subs[:12]:
@@ -97,9 +82,9 @@ def retrieve_graph(state: AgentState) -> AgentState:
         max_chars_per_chunk=settings.context_chunk_max_chars,
         header="【关键词匹配的文档片段】",
     )
-    all_chunk_ids = list(
-        dict.fromkeys(chunk_ids + graph_cids)
-    )[: settings.context_max_chunks]
+    all_chunk_ids = list(dict.fromkeys(chunk_ids + graph_cids))[
+        : settings.context_max_chunks
+    ]
     header = "【检索关键词】" + "、".join(keywords[:8])
     parts = [header, kw_ctx] if kw_ctx else [header, "【图谱检索】未找到相关文档片段。"]
     if extra_lines:

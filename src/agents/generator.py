@@ -1,4 +1,7 @@
-"""Generate final answer from retrieved context."""
+"""Generate：把检索上下文与用户问题交给 LLM，生成最终答案。
+
+若检测到回答以英文为主，会用 ANSWER_RETRY_USER 再生成一次（见 llm.is_mostly_chinese）。
+"""
 
 from __future__ import annotations
 

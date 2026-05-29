@@ -1,0 +1,80 @@
+# 单文档 / 发行人配置：换招股书时主要改此文件，而非改 agents 代码。
+# 环境变量 DOCUMENT_PROFILE_PATH 可指向其他 profile。
+
+document_id: yushu
+issuer:
+  legal_name: 宇树科技股份有限公司
+  short_names:
+    - 宇树科技
+    - 宇树
+  graph_parent_hint: 宇树
+
+controller:
+  names:
+    - 王兴兴
+  question_keywords:
+    - 控制
+    - 实际控制人
+    - 控股股东
+    - 法定代表人
+
+subsidiaries:
+  names:
+    - 宇树机器人
+    - 上海高羿
+    - 北京灵翌
+    - 深圳天羿
+    - 宁波宇树
+    - 重庆宇羿
+    - 宇树星盟
+    - UNITREE
+  context_markers:
+    - 全资子公司
+    - 系发行人的全资子公司
+    - 发行人子公司
+
+# 已知模型幻觉 / 历史误答，Critic 直接拒绝
+hallucination_patterns:
+  - 张阳光
+  - Zhang Yangguang
+  - Yangguang Zhang
+
+# 招股书领域通用检索扩展（不含公司专有实体，实体由上方 issuer/controller/subsidiaries 注入）
+topic_expansions:
+  - pattern: "实际控制人|控股股东|控制人|法定代表人"
+    terms:
+      - 实际控制人
+      - 控股股东
+      - 表决权
+  - pattern: "全资子公司|子公司"
+    terms:
+      - 发行人子公司
+      - 全资子公司
+      - 系发行人的全资子公司
+  - pattern: "营业收入|净利润|毛利率|财务|扣非"
+    terms:
+      - 营业收入
+      - 净利润
+      - 毛利率
+      - 万元
+  - pattern: "成立|注册地址|基本情况"
+    terms:
+      - 成立日期
+      - 注册地址
+      - 发行人基本情况
+  - pattern: "风险"
+    terms:
+      - 风险因素
+      - 风险
+  - pattern: "主营业务|做什么|业务"
+    terms:
+      - 主营业务
+  - pattern: "募资|募集资金"
+    terms:
+      - 募集资金
+      - 投资项目
+  - pattern: "股东|股权"
+    terms:
+      - 股东
+      - 股权
+      - 持股

@@ -1,22 +1,18 @@
-"""Hybrid retrieval: vector top-K then graph expansion via chunk entities."""
+"""Hybrid Expert：Chroma 向量 + Neo4j 定向 chunk + 图谱子图。
+
+向量负责语义召回；图谱负责补足「章节标题对不上 embedding」的段落（如风险因素、子公司表）。
+上下文经 context_limit 截断，避免书末无关 chunk 淹没 LLM。
+"""
 
 from __future__ import annotations
 
 from config.settings import settings
 from src.agents.state import AgentState
 from src.tools.context_limit import ChunkBlock, merge_and_limit_context
+from src.tools.directed_retrieval import fetch_directed_chunks
 from src.tools.neo4j_client import Neo4jGraphClient
 from src.tools.retrieval import extract_search_keywords
 from src.tools.vector_client import similarity_search
-
-
-def _chunk_block_from_row(c: dict, *, priority: int) -> ChunkBlock:
-    return ChunkBlock(
-        chunk_id=c.get("chunk_id", ""),
-        page=c.get("page", "?"),
-        text=c.get("text") or "",
-        priority=priority,
-    )
 
 
 def retrieve_hybrid(state: AgentState) -> AgentState:
@@ -31,25 +27,38 @@ def retrieve_hybrid(state: AgentState) -> AgentState:
                 chunk_id=doc.metadata.get("chunk_id", ""),
                 page=doc.metadata.get("page", "?"),
                 text=doc.page_content,
-                priority=30 - i,
+                priority=30 - i,  # 向量结果优先级低于定向 chunk
             )
         )
 
     graph_lines: list[str] = []
+    graph_chunk_ids: list[str] = []
     with Neo4jGraphClient() as graph:
-        if "子公司" in question or "全资" in question:
-            for c in graph.search_subsidiary_chunks(limit=4):
-                blocks.append(_chunk_block_from_row(c, priority=90))
-        if any(k in question for k in ("控制", "股东", "控股")):
-            for c in graph.search_controller_chunks(limit=3):
-                blocks.append(_chunk_block_from_row(c, priority=88))
-        if "风险" in question:
-            for c in graph.search_risk_chunks(limit=5):
-                blocks.append(_chunk_block_from_row(c, priority=86))
+        for row, priority in fetch_directed_chunks(
+            question, graph, limits={"subsidiary": 4, "controller": 3, "risk": 5}
+        ):
+            blocks.append(
+                ChunkBlock(
+                    chunk_id=row["chunk_id"],
+                    page=row.get("page", "?"),
+                    text=row.get("text") or "",
+                    priority=priority,
+                )
+            )
+
         for c in graph.search_chunks_by_keywords(
             keywords, boost_phrases=keywords[:6], limit=5
         ):
-            blocks.append(_chunk_block_from_row(c, priority=70))
+            cid = c["chunk_id"]
+            if not any(b.chunk_id == cid for b in blocks):
+                blocks.append(
+                    ChunkBlock(
+                        chunk_id=cid,
+                        page=c.get("page", "?"),
+                        text=c.get("text") or "",
+                        priority=70,
+                    )
+                )
 
         chunk_ids_seed = [b.chunk_id for b in blocks if b.chunk_id]
         entity_names = graph.expand_entities_from_chunk_ids(

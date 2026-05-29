@@ -1,4 +1,9 @@
-"""CLI entry: chunk PDFs -> Chroma vectors + Neo4j knowledge graph."""
+"""离线建库 CLI：PDF 分块 → Chroma 向量索引 + Neo4j 图谱。
+
+用法示例：
+  python -m src.pipeline.build_knowledge --source data/raw_docs/yushu.pdf
+  python -m src.pipeline.build_knowledge --resume   # 图谱抽取断点续跑
+"""
 
 from __future__ import annotations
 
@@ -7,7 +12,7 @@ import logging
 import sys
 from pathlib import Path
 
-# Allow `python -m src.pipeline.build_knowledge` from project root
+# 支持在项目根目录执行 python -m src.pipeline.build_knowledge
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -31,6 +36,7 @@ def build(
     reset_chroma: bool,
     resume: bool,
 ) -> None:
+    """建库主流程：分块 →（可选）Chroma →（可选）Neo4j 抽取。"""
     if source and source.is_file():
         chunks = process_pdf(source)
         doc_label = source.name

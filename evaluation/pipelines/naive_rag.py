@@ -1,4 +1,7 @@
-"""Baseline B0: Chroma Top-K + LLM (no graph, no multi-agent)."""
+"""评测基线 B0：仅 Chroma Top-K + 与线上一致的回答 Prompt。
+
+用于对比 Multi-Agent 是否带来增益；无 Router、Neo4j、Critic。
+"""
 
 from __future__ import annotations
 

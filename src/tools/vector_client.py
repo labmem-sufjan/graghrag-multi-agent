@@ -1,4 +1,7 @@
-"""Chroma vector store for document chunks (embeddings live here only)."""
+"""Chroma 向量库：仅存 chunk 文本与 embedding，不负责图谱。
+
+离线 index_chunks 由 build_knowledge 调用；在线 similarity_search 由 vector/hybrid expert 调用。
+"""
 
 from __future__ import annotations
 
@@ -25,7 +28,7 @@ def get_vector_store() -> Chroma:
 
 
 def index_chunks(chunks: list[Document], *, reset: bool = False) -> int:
-    """Embed and store chunks in Chroma. Returns number of chunks indexed."""
+    """写入 Chroma；id 使用 chunk_id，便于去重与评测对齐。"""
     if not chunks:
         return 0
 
@@ -45,5 +48,6 @@ def index_chunks(chunks: list[Document], *, reset: bool = False) -> int:
 
 
 def similarity_search(query: str, k: int = 5) -> list[Document]:
+    """在线语义检索，返回 Top-K Document（含 metadata）。"""
     store = get_vector_store()
     return store.similarity_search(query, k=k)

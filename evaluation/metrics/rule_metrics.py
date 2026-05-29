@@ -1,4 +1,7 @@
-"""Rule-based metrics (no extra LLM cost)."""
+"""规则指标：不额外调 LLM，适合快速迭代对比。
+
+must_contain：答案是否含关键词；gold_chunk_recall：检索是否命中标注 chunk。
+"""
 
 from __future__ import annotations
 

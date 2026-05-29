@@ -1,4 +1,8 @@
-"""Route questions to vector, graph, or hybrid retrieval."""
+"""Router：决定走向量、图谱还是混合检索。
+
+优先用关键词规则（快、稳）；未命中规则时再问 LLM。规则与 document_profile 无关，
+面向招股书类问题的通用表述（子公司、风险、控制人等）。
+"""
 
 from __future__ import annotations
 
@@ -21,6 +25,7 @@ _RISK_KEYWORDS = re.compile(
 
 
 def _route_by_keywords(question: str) -> str | None:
+    """命中则直接返回 route，不再调 LLM。"""
     if _META_KEYWORDS.search(question):
         return "vector"
     if _RISK_KEYWORDS.search(question) or (
@@ -33,6 +38,9 @@ def _route_by_keywords(question: str) -> str | None:
             "子公司" in question or "全资" in question
         ):
             return "hybrid"
+        # 问子公司具体业务 → graph，便于命中 p58 表
+        if ("子公司" in question or "全资" in question) and "业务" in question:
+            return "graph"
         if len(question) > 40:
             return "hybrid"
         return "graph"

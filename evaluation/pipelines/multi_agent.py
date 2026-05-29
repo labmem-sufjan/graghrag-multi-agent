@@ -1,4 +1,4 @@
-"""Full system: LangGraph Router + Experts + Critic."""
+"""评测完整系统：调用 graph_workflow.run_query，与 app.py / web 一致。"""
 
 from __future__ import annotations
 

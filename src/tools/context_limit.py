@@ -1,4 +1,7 @@
-"""Merge retrieval blocks and cap chunks / chars sent to the LLM."""
+"""合并多路检索得到的 chunk，并按条数、单段长度截断后送给 LLM。
+
+同一 chunk_id 只保留一条，priority 高者优先（定向 chunk > 向量 chunk）。
+"""
 
 from __future__ import annotations
 
@@ -20,7 +23,6 @@ def merge_and_limit_context(
     max_chars_per_chunk: int,
     header: str = "",
 ) -> tuple[str, list[str]]:
-    """Deduplicate by chunk_id (higher priority wins), cap count and per-chunk length."""
     by_id: dict[str, ChunkBlock] = {}
     for b in sorted(blocks, key=lambda x: -x.priority):
         if not b.chunk_id:
