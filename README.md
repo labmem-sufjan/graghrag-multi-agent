@@ -112,11 +112,12 @@ docs/                架构说明
 
 ## 配置
 
-| 变量 | 说明 |
-|------|------|
+| 变量 / 文件 | 说明 |
+|-------------|------|
+| `config/document_profile.yml` | **发行人配置**（控制人、子公司、幻觉拦截、检索扩展）；换 PDF 优先改此文件 |
+| `DOCUMENT_PROFILE_PATH` | 指向其他 profile（见 `document_profile.example.yml`） |
 | `NEO4J_*` | 图谱连接 |
 | `OLLAMA_LLM_MODEL` | 生成模型，建议 `qwen2.5:7b` |
-| `OLLAMA_EMBED_MODEL` | 向量模型，默认 `nomic-embed-text` |
 | `RETRIEVAL_TOP_K` | 向量 Top-K |
 | `CONTEXT_MAX_CHUNKS` | 送入 LLM 的最大 chunk 数 |
 | `CRITIC_USE_LLM` | 默认 `false` |
@@ -131,6 +132,7 @@ docs/                架构说明
 |------|------|
 | [evaluation/README.md](evaluation/README.md) | 测试集、跑分流程、**指标迭代与对比** |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 模块职责与数据流 |
+| [docs/CODEMAP.md](docs/CODEMAP.md) | **按阅读顺序的代码地图（含中文注释索引）** |
 
 ---
 

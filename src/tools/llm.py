@@ -1,4 +1,7 @@
-"""Shared Ollama chat client — Chinese-first defaults."""
+"""统一封装 Ollama Chat 调用，供抽取 / 路由 / 生成 / Critic 使用。
+
+is_mostly_chinese：生成节点用来判断是否要触发「请用中文重答」。
+"""
 
 from __future__ import annotations
 
@@ -29,6 +32,7 @@ def get_chat_llm(*, temperature: float = 0, json_mode: bool = False) -> ChatOlla
 
 
 def is_mostly_chinese(text: str) -> bool:
+    """启发式判断：英文单词过多或含典型英文模板则视为非中文回答。"""
     if not text.strip():
         return True
     cn = len(_CHINESE_RATIO_RE.findall(text))
@@ -41,6 +45,7 @@ def is_mostly_chinese(text: str) -> bool:
 
 
 def extract_message_content(response) -> str:
+    """兼容 Ollama 返回 str 或 content blocks 列表。"""
     content = response.content if hasattr(response, "content") else str(response)
     if isinstance(content, list):
         parts = []

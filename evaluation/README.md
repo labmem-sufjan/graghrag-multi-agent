@@ -196,7 +196,11 @@ python -m evaluation.evaluate --runs naive_rag,multi_agent --no-ragas
 
 ## 待优化（评测侧跟踪）
 
-- [ ] 财务、发行人基本情况定向 chunk → 提升 q003、q006、q007、q009
+- [x] 发行人配置 `config/document_profile.yml`（Critic / 检索去硬编码）
+- [x] 财务、发行人基本情况定向 chunk（`search_financial_chunks` / `search_issuer_profile_chunks`）
+- [ ] 重跑全量评测，更新上文指标表（v3）
 - [ ] q024 与 p58 子公司业务表对齐
 - [ ] q002 生成约束带出持股比例
-- [ ] 全量 Ragas 复评，观察 v2 上下文截断对 faithfulness 的影响
+- [ ] 全量 Ragas 复评
+
+换文档评测时：复制 `document_profile.example.yml`，改实体名后设置 `DOCUMENT_PROFILE_PATH`，并更新 `test_dataset.json` 的 `must_contain` / `gold_chunk_ids`。

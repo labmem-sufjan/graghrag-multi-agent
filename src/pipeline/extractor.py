@@ -1,4 +1,8 @@
-"""Extract entities and relations from chunks via Ollama."""
+"""离线流水线第二步：对每个 chunk 调用 LLM 抽取实体/关系，写入 Neo4j。
+
+抽取结果与 Chunk 节点通过 MENTIONS 关联；关系类型见 _RELATION_TYPES。
+JSON 解析失败时会重试，仍失败则只保留 Chunk（extraction_ok=False），可 --resume 续跑。
+"""
 
 from __future__ import annotations
 
@@ -19,6 +23,7 @@ from src.tools.neo4j_client import GraphEntity, GraphRelation
 
 logger = logging.getLogger(__name__)
 
+# 与 prompts 约定一致的实体/关系类型白名单
 _ENTITY_TYPES = {
     "Company", "Product", "Person", "FinancialMetric",
     "Risk", "Regulation", "Location", "Industry",
@@ -41,6 +46,7 @@ def _get_llm():
 
 
 def _strip_json_noise(raw: str) -> str:
+    """去掉 markdown 代码块包裹，截取首尾花括号之间的 JSON。"""
     raw = raw.strip()
     fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw)
     if fence:
@@ -53,6 +59,7 @@ def _strip_json_noise(raw: str) -> str:
 
 
 def _repair_json_text(text: str) -> str:
+    """修复尾随逗号、中文引号等常见 LLM JSON 错误。"""
     text = re.sub(r",\s*}", "}", text)
     text = re.sub(r",\s*]", "]", text)
     text = text.replace("\u201c", '"').replace("\u201d", '"')
@@ -60,6 +67,7 @@ def _repair_json_text(text: str) -> str:
 
 
 def _parse_entities_relations_fallback(body: str) -> dict | None:
+    """标准 json.loads 失败时，用括号匹配单独抠 entities/relations 数组。"""
     result: dict = {"entities": [], "relations": []}
     for key in ("entities", "relations"):
         m = re.search(rf'"{key}"\s*:\s*(\[)', body)
@@ -87,8 +95,8 @@ def _parse_entities_relations_fallback(body: str) -> dict | None:
 
 
 def _parse_json_payload(raw: str) -> dict:
-    body = _strip_json_noise(raw)
     last_err: Exception | None = None
+    body = _strip_json_noise(raw)
     for candidate in (body, _repair_json_text(body)):
         try:
             data = json.loads(candidate)
@@ -104,6 +112,7 @@ def _parse_json_payload(raw: str) -> dict:
 
 
 def _build_result(data: dict, chunk_id: str) -> ExtractionResult:
+    """校验类型白名单；关系两端必须都是本 chunk 已出现的实体。"""
     entities: list[GraphEntity] = []
     seen_names: set[str] = set()
     for item in data.get("entities") or []:
@@ -143,6 +152,7 @@ def _build_result(data: dict, chunk_id: str) -> ExtractionResult:
 
 
 def extract_from_chunk(chunk: Document) -> ExtractionResult:
+    """对单个 chunk 调 Ollama，返回结构化实体与关系。"""
     chunk_id = chunk.metadata["chunk_id"]
     document_name = chunk.metadata.get("source", "unknown.pdf")
     llm = _get_llm()
@@ -199,7 +209,11 @@ def extract_and_load(
     resume: bool = False,
     skip_on_error: bool = True,
 ) -> dict[str, int]:
-    """Extract from chunks and write graph nodes/edges to Neo4j."""
+    """批量抽取并写入 Neo4j。
+
+    resume=True 时跳过已在库中标记抽取完成的 chunk_id。
+    skip_on_error=True 时单 chunk 失败不中断整批，便于长跑建库。
+    """
     from src.tools.neo4j_client import Neo4jGraphClient
 
     if not isinstance(graph_client, Neo4jGraphClient):

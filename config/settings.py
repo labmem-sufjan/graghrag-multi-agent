@@ -51,5 +51,8 @@ class Settings(BaseSettings):
     # Critic: 默认仅用规则（更稳）；设为 true 时再调 LLM
     critic_use_llm: bool = False
 
+    # 发行人 / 文档配置（换 PDF 时优先改 YAML，而非改 agents 代码）
+    document_profile_path: str = str(PROJECT_ROOT / "config" / "document_profile.yml")
+
 
 settings = Settings()

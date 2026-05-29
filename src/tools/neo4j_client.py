@@ -1,4 +1,12 @@
-"""Neo4j graph store — structure only, no embeddings."""
+"""Neo4j 图谱存储：仅存结构与 Chunk 全文，不做向量。
+
+节点类型：
+  Document -[:HAS_CHUNK]-> Chunk -[:MENTIONS]-> Entity
+  Entity -[:SUBSIDIARY_OF|...]-> Entity
+
+在线检索主要用 Chunk.text 的 CONTAINS 关键词搜索 + 实体邻域子图；
+定向检索方法（search_*_chunks）的关键词来自 document_profile。
+"""
 
 from __future__ import annotations
 
@@ -25,6 +33,8 @@ class GraphRelation:
 
 
 class Neo4jGraphClient:
+    """图谱读写客户端；推荐 with Neo4jGraphClient() as graph: 自动 close。"""
+
     def __init__(
         self,
         uri: str | None = None,
@@ -46,6 +56,7 @@ class Neo4jGraphClient:
         self.close()
 
     def ensure_schema(self) -> None:
+        """创建唯一约束，避免重复 Document / Chunk / Entity。"""
         queries = [
             "CREATE CONSTRAINT document_name IF NOT EXISTS FOR (d:Document) REQUIRE d.name IS UNIQUE",
             "CREATE CONSTRAINT chunk_id IF NOT EXISTS FOR (c:Chunk) REQUIRE c.chunk_id IS UNIQUE",
@@ -274,6 +285,8 @@ class Neo4jGraphClient:
                 )
         return "\n".join(lines), chunk_ids
 
+    # ---------- 在线检索：Chunk 关键词 / 定向章节 ----------
+
     def search_chunks_by_keywords(
         self,
         keywords: list[str],
@@ -281,7 +294,7 @@ class Neo4jGraphClient:
         boost_phrases: list[str] | None = None,
         limit: int = 8,
     ) -> list[dict]:
-        """Full-text search on Chunk.text with optional phrase boosting."""
+        """在 Chunk.text 上做子串匹配，boost 短语提高招股书关键段排名。"""
         if not keywords:
             return []
         boost_phrases = boost_phrases or []
@@ -320,17 +333,15 @@ class Neo4jGraphClient:
             )
         return rows
 
-    def search_subsidiary_chunks(self, *, limit: int = 6) -> list[dict]:
+    def search_subsidiary_chunks(
+        self, *, limit: int = 6, profile=None
+    ) -> list[dict]:
         """Prioritize the issuer subsidiary listing section (around p56–58)."""
+        from config.document_profile import get_document_profile
+
+        p = profile or get_document_profile()
         return self.search_chunks_by_keywords(
-            [
-                "发行人子公司",
-                "全资子公司",
-                "宇树机器人",
-                "宁波宇树",
-                "重庆宇羿",
-                "上海高羿",
-            ],
+            p.subsidiary_search_keywords(),
             boost_phrases=[
                 "发行人子公司",
                 "系发行人的全资子公司",
@@ -339,11 +350,43 @@ class Neo4jGraphClient:
             limit=limit,
         )
 
-    def search_controller_chunks(self, *, limit: int = 4) -> list[dict]:
+    def search_controller_chunks(
+        self, *, limit: int = 4, profile=None
+    ) -> list[dict]:
         """Prioritize actual controller / shareholder disclosure."""
+        from config.document_profile import get_document_profile
+
+        p = profile or get_document_profile()
+        names = p.controller_names
         return self.search_chunks_by_keywords(
-            ["实际控制人", "控股股东", "王兴兴", "表决权"],
-            boost_phrases=["实际控制人", "控股股东", "王兴兴"],
+            p.controller_search_keywords(),
+            boost_phrases=["实际控制人", "控股股东", *names[:3]],
+            limit=limit,
+        )
+
+    def search_financial_chunks(
+        self, *, limit: int = 6, profile=None
+    ) -> list[dict]:
+        """Financial statements and operating metrics sections."""
+        from config.document_profile import get_document_profile
+
+        p = profile or get_document_profile()
+        return self.search_chunks_by_keywords(
+            p.financial_search_keywords(),
+            boost_phrases=["合并利润表", "营业收入", "净利润", "毛利率"],
+            limit=limit,
+        )
+
+    def search_issuer_profile_chunks(
+        self, *, limit: int = 5, profile=None
+    ) -> list[dict]:
+        """Issuer basic info: incorporation date, registered address, etc."""
+        from config.document_profile import get_document_profile
+
+        p = profile or get_document_profile()
+        return self.search_chunks_by_keywords(
+            p.issuer_profile_search_keywords(),
+            boost_phrases=["发行人基本情况", "注册地址", "成立日期"],
             limit=limit,
         )
 
@@ -362,8 +405,14 @@ class Neo4jGraphClient:
             limit=limit,
         )
 
-    def search_subsidiary_relations(self, parent_hint: str = "宇树", limit: int = 15) -> list[dict]:
+    def search_subsidiary_relations(
+        self, parent_hint: str | None = None, limit: int = 15, profile=None
+    ) -> list[dict]:
         """Entity–entity SUBSIDIARY_OF edges involving the issuer."""
+        from config.document_profile import get_document_profile
+
+        p = profile or get_document_profile()
+        hint = parent_hint or p.graph_parent_hint or p.default_issuer_keyword()
         with self._driver.session() as session:
             rows = self._records(
                 session.run(
@@ -373,7 +422,7 @@ class Neo4jGraphClient:
                     RETURN a.name AS src, b.name AS tgt, coalesce(r.sources, []) AS sources
                     LIMIT $limit
                     """,
-                    hint=parent_hint,
+                    hint=hint,
                     limit=limit,
                 )
             )
@@ -385,7 +434,7 @@ class Neo4jGraphClient:
                     RETURN b.name AS src, a.name AS tgt, coalesce(r.sources, []) AS sources
                     LIMIT $limit
                     """,
-                    hint=parent_hint,
+                    hint=hint,
                     limit=limit,
                 )
             )

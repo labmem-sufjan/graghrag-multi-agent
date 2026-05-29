@@ -1,6 +1,6 @@
-"""Batch-run evaluation pipelines on test_dataset.json.
+"""批量跑评测：对 test_dataset.json 每题调用 pipeline，结果写入 outputs/*.jsonl。
 
-Usage (from project root):
+在项目根目录执行：
   python -m evaluation.run --pipelines naive_rag,multi_agent
   python -m evaluation.run --pipeline naive_rag --limit 5
 """

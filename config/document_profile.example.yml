@@ -1,0 +1,31 @@
+# 复制为 document_profile.yml 或设置 DOCUMENT_PROFILE_PATH 指向新文件。
+# 换招股书时修改：issuer、controller、subsidiaries、hallucination_patterns。
+# topic_expansions 为领域通用词，一般可复用。
+
+document_id: example_corp
+issuer:
+  legal_name: 示例科技股份有限公司
+  short_names:
+    - 示例科技
+  graph_parent_hint: 示例
+
+controller:
+  names:
+    - 张三
+  question_keywords:
+    - 控制
+    - 实际控制人
+    - 控股股东
+
+subsidiaries:
+  names:
+    - 示例子公司A
+  context_markers:
+    - 全资子公司
+    - 发行人子公司
+
+hallucination_patterns: []
+
+topic_expansions:
+  - pattern: "风险"
+    terms: ["风险因素", "风险"]

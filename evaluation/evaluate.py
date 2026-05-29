@@ -1,8 +1,7 @@
-"""Score saved runs with rule metrics and optional Ragas.
+"""对已保存的 jsonl 跑分：规则指标（must_contain、gold_chunk_recall）+ 可选 Ragas。
 
-Usage:
-  python -m evaluation.evaluate --runs naive_rag,multi_agent
-  python -m evaluation.evaluate --file evaluation/outputs/run_naive_rag_xxx.jsonl
+不会重新调用 LLM 答题，只读 evaluation/outputs 里的历史运行结果。
+  python -m evaluation.evaluate --runs naive_rag,multi_agent --no-ragas
 """
 
 from __future__ import annotations
